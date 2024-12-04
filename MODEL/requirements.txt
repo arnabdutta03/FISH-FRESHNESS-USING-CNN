@@ -1,0 +1,5 @@
+tensorflow
+minisom
+numpy
+scikit-learn
+pillow

@@ -1,14 +1,15 @@
 Confusion Matrix:
-[[16  2]
+[[17  1]
  [ 2 95]]
 
               precision    recall  f1-score   support
 
-       Fresh       0.89      0.89      0.89        18
-   Non-Fresh       0.98      0.98      0.98        97
+       Fresh       0.89      0.94      0.92        18
+   Non-Fresh       0.99      0.98      0.98        97
 
     accuracy                           0.97       115
-   macro avg       0.93      0.93      0.93       115
+   macro avg       0.94      0.96      0.95       115
 weighted avg       0.97      0.97      0.97       115
 
-Test Accuracy: 96.52%
+Test Loss: 0.0845
+Test Accuracy: 97.39%
