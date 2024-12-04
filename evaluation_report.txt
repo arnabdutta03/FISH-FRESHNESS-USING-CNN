@@ -11,5 +11,5 @@ Confusion Matrix:
    macro avg       0.94      0.96      0.95       115
 weighted avg       0.97      0.97      0.97       115
 
-Test Loss: 0.0845
+Test Loss: 0.1111
 Test Accuracy: 97.39%

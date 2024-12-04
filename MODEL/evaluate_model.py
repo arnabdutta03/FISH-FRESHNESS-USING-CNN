@@ -8,24 +8,41 @@ from concurrent.futures import ThreadPoolExecutor
 
 # Save the training metrics (accuracy and loss) to a JSON file
 def save_metrics(history, save_path):
+    """
+    Saves the training and validation metrics (accuracy and loss) to a JSON file.
+
+    Args:
+        history: History object containing training metrics.
+        save_path (str): Directory path where metrics will be saved.
+    """
     metrics_data = {
         'training_accuracy': history.history.get('accuracy', []),
         'validation_accuracy': history.history.get('val_accuracy', []),
         'training_loss': history.history.get('loss', []),
         'validation_loss': history.history.get('val_loss', [])
     }
-    os.makedirs(save_path, exist_ok=True)
+
+    os.makedirs(save_path, exist_ok=True)  # Ensure the directory exists
     with open(os.path.join(save_path, 'training_metrics.json'), 'w') as f:
-        json.dump(metrics_data, f)
+        json.dump(metrics_data, f)  # Save metrics as a JSON file
     print(f"Training metrics saved to {save_path}/training_metrics.json")
 
 # Evaluate the model on test data and provide results
 def evaluate_model(model, test_images, test_labels, save_path):
-    # Evaluate the model
+    """
+    Evaluates the trained model on test data and saves the results to a file.
+
+    Args:
+        model: Trained model.
+        test_images (ndarray): Array of test images.
+        test_labels (ndarray): Array of test labels.
+        save_path (str): Directory path where evaluation results will be saved.
+    """
+    # Evaluate the model on the test data
     test_loss, test_accuracy = model.evaluate(test_images, test_labels, verbose=0)
     test_accuracy_percentage = test_accuracy * 100
 
-    # Generate predictions
+    # Generate predictions and calculate confusion matrix and classification report
     predictions = np.argmax(model.predict(test_images), axis=1)
     conf_matrix = confusion_matrix(test_labels, predictions)
     report = classification_report(
@@ -35,7 +52,7 @@ def evaluate_model(model, test_images, test_labels, save_path):
         digits=2
     )
 
-    # Combine results into a single output
+    # Combine evaluation results into a single output
     output = (
         f"Confusion Matrix:\n{conf_matrix}\n\n"
         f"{report}\n"
@@ -45,14 +62,24 @@ def evaluate_model(model, test_images, test_labels, save_path):
 
     # Print and save the evaluation report
     os.makedirs(save_path, exist_ok=True)
-    print(output)
+    print(output)  # Display evaluation output
     with open(os.path.join(save_path, 'evaluation_report.txt'), 'w') as f:
-        f.write(output)
+        f.write(output)  # Save the report to a text file
     print(f"Evaluation report saved to {save_path}/evaluation_report.txt")
 
 # Classify images and save them into corresponding folders: FRESH or NON_FRESH
-def classify_and_save_images(model, images, image_paths, output_path):
-    # Prepare output directories
+def classify_and_save_images(model, images, image_paths, output_path, batch_size=128):
+    """
+    Classifies the given images using the model and saves them into FRESH or NON_FRESH folders.
+
+    Args:
+        model: Trained model.
+        images (ndarray): Array of images to classify.
+        image_paths (list): List of image file paths.
+        output_path (str): Directory path to save the classified images.
+        batch_size (int, optional): Number of images to process in a batch. Default is 128.
+    """
+    # Prepare output directories for classification results
     output_dir = os.path.join(output_path, 'OUTPUT')
     os.makedirs(output_dir, exist_ok=True)
 
@@ -61,22 +88,26 @@ def classify_and_save_images(model, images, image_paths, output_path):
     os.makedirs(fresh_dir, exist_ok=True)
     os.makedirs(non_fresh_dir, exist_ok=True)
 
-    # Use ThreadPoolExecutor for concurrent classification and saving
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        futures = []
-        for img_array, img_path in zip(images, image_paths):
-            futures.append(executor.submit(classify_and_save, model, img_array, img_path, fresh_dir, non_fresh_dir))
+    num_images = len(images)  # Total number of images to classify
 
-        for future in futures:
-            future.result()
+    # Use ThreadPoolExecutor for concurrent file operations
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        for i in range(0, num_images, batch_size):
+            # Process images in batches
+            batch_images = images[i:i+batch_size]
+            batch_paths = image_paths[i:i+batch_size]
+            
+            # Perform batch predictions
+            predictions = np.argmax(model.predict(np.array(batch_images)), axis=1)
+
+            # Concurrently save images to the appropriate folder (FRESH or NON_FRESH)
+            futures = []
+            for pred, img_path in zip(predictions, batch_paths):
+                destination = fresh_dir if pred == 0 else non_fresh_dir
+                futures.append(executor.submit(shutil.copy, img_path, destination))
+
+            # Wait for all file operations to complete
+            for future in futures:
+                future.result()
 
     print(f"Classified images saved to {output_dir}")
-
-# Helper function for classifying and saving an image
-def classify_and_save(model, img_array, img_path, fresh_dir, non_fresh_dir):
-    img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
-    prediction = np.argmax(model.predict(img_array), axis=1)
-
-    # Save the image to the corresponding folder based on prediction
-    destination = fresh_dir if prediction == 0 else non_fresh_dir
-    shutil.copy(img_path, destination)
